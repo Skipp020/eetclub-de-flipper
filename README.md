@@ -21,10 +21,22 @@ Flipper-score en de gezamenlijke ranglijst. Gebaseerd op de Excel
 
 ## Toegang
 
-Geen accounts: leden vullen één keer een gedeelde **clubcode** in
-(`CLUB_CODE`). De browser onthoudt dat een jaar lang. Wijzig je de code,
-dan moet iedereen de nieuwe code invullen. De database is alleen via de
+Geen accounts, wel twee sloten:
+
+1. **Clubcode** (`CLUB_CODE`): één gedeelde code om de app binnen te komen.
+   Wijzig je de code, dan moet iedereen de nieuwe code invullen.
+2. **Naam + pincode**: ieder lid kiest zijn naam en een eigen pincode
+   (4–8 cijfers). Je kunt alleen je eigen stemmen invoeren, aanpassen en
+   verwijderen; die van anderen zie je wel. Na 5 foute pogingen is een naam
+   15 minuten geblokkeerd.
+
+De browser onthoudt beide een jaar lang. De database is alleen via de
 server bereikbaar (Row Level Security staat aan, zonder publieke policies).
+
+### Pincode vergeten
+
+Supabase → Table Editor → `members` → zet bij dat lid `pin_hash` op NULL.
+Het lid kiest bij de volgende keer inloggen een nieuwe pincode.
 
 ## Stack
 
@@ -35,8 +47,9 @@ server bereikbaar (Row Level Security staat aan, zonder publieke policies).
 ## Online zetten
 
 1. **Supabase**: maak een (gratis) project aan op supabase.com. Open de
-   SQL Editor, plak de inhoud van `supabase/migrations/0001_init.sql` en
-   klik Run. Dit maakt de tabel aan en zet de stemmen uit de Excel erin.
+   SQL Editor en draai de bestanden in `supabase/migrations/` op volgorde
+   (`0001_init.sql`, dan `0002_members.sql`). Dit maakt de tabellen aan en
+   zet de stemmen uit de Excel erin.
 2. **Sleutels**: Supabase → Project Settings → API. Noteer de Project URL
    en de `service_role` key.
 3. **Vercel**: Add New → Project → importeer deze repository. Zet bij

@@ -16,6 +16,7 @@ export const CATEGORIES: {
 
 export type Vote = {
   id: string;
+  member_id: string;
   restaurant: string;
   datum: string;
   lid: string;

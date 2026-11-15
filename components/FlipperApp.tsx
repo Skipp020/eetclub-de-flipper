@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useFormState, useFormStatus } from "react-dom";
-import { saveVote, deleteVote, logout, type ActionResult } from "@/app/actions";
+import { saveVote, deleteVote, logout, switchMember, type ActionResult } from "@/app/actions";
 import {
   CATEGORIES,
   formatDate,
@@ -62,7 +62,9 @@ const draftFrom = (v: Vote): Draft => ({
   eindreactie: v.eindreactie ?? "",
 });
 
-export default function FlipperApp({ votes, loadError }: { votes: Vote[]; loadError: string | null }) {
+type Me = { id: string; name: string };
+
+export default function FlipperApp({ votes, loadError, me }: { votes: Vote[]; loadError: string | null; me: Me }) {
   const [view, setView] = useState<View>("ranglijst");
   const [draft, setDraft] = useState<Draft>(() => emptyDraft());
 
@@ -83,19 +85,17 @@ export default function FlipperApp({ votes, loadError }: { votes: Vote[]; loadEr
 
   const ranking = useMemo(() => rank(votes), [votes]);
   const restaurants = ranking.map((r) => r.name);
-  const members = useMemo(
-    () => [...new Set(votes.map((v) => v.lid.trim()))].sort((a, b) => a.localeCompare(b, "nl")),
-    [votes]
-  );
 
   return (
     <main className="wrap">
       <header className="masthead">
         <div className="mast-row">
           <span className="eyebrow">Eetclub</span>
-          <form action={logout}>
-            <button type="submit" className="link">Uitloggen</button>
-          </form>
+          <span className="who">
+            Ingelogd als <strong>{me.name}</strong> ·{" "}
+            <form action={switchMember}><button type="submit" className="link">Wissel van lid</button></form> ·{" "}
+            <form action={logout}><button type="submit" className="link">Uitloggen</button></form>
+          </span>
         </div>
         <h1>De Flipper</h1>
         <p className="sub">Elk restaurant, elk lid, één cijfer per categorie. De Flipper-score rekent zichzelf uit.</p>
@@ -115,6 +115,7 @@ export default function FlipperApp({ votes, loadError }: { votes: Vote[]; loadEr
         <Ranking
           ranking={ranking}
           totalVotes={votes.length}
+          meId={me.id}
           onEdit={(v) => {
             setDraft(draftFrom(v));
             go("stemmen");
@@ -127,7 +128,7 @@ export default function FlipperApp({ votes, loadError }: { votes: Vote[]; loadEr
           key={draft.id || "nieuw"}
           initial={draft}
           restaurants={restaurants}
-          members={members}
+          me={me}
           onReset={(keep) => setDraft(emptyDraft(keep))}
         />
       )}
@@ -141,11 +142,13 @@ export default function FlipperApp({ votes, loadError }: { votes: Vote[]; loadEr
 function Ranking({
   ranking,
   totalVotes,
+  meId,
   onEdit,
   onFirst,
 }: {
   ranking: ReturnType<typeof rank>;
   totalVotes: number;
+  meId: string;
   onEdit: (v: Vote) => void;
   onFirst: () => void;
 }) {
@@ -194,7 +197,7 @@ function Ranking({
               </div>
               <div className="detail">
                 {r.votes.map((v) => (
-                  <VoteCard key={v.id} vote={v} onEdit={() => onEdit(v)} />
+                  <VoteCard key={v.id} vote={v} mine={v.member_id === meId} onEdit={() => onEdit(v)} />
                 ))}
               </div>
             </details>
@@ -205,7 +208,7 @@ function Ranking({
   );
 }
 
-function VoteCard({ vote: v, onEdit }: { vote: Vote; onEdit: () => void }) {
+function VoteCard({ vote: v, mine, onEdit }: { vote: Vote; mine: boolean; onEdit: () => void }) {
   const [confirm, setConfirm] = useState(false);
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -220,7 +223,7 @@ function VoteCard({ vote: v, onEdit }: { vote: Vote; onEdit: () => void }) {
   return (
     <div className="vote">
       <div className="vhead">
-        <strong>{v.lid}</strong>
+        <strong>{v.lid}{mine && <span className="note"> (jij)</span>}</strong>
         <span className={`score mini ${scoreClass(p)}`}>{formatScore(p)}</span>
       </div>
       <div className="vnums">{CATEGORIES.map((c) => `${c.short} ${formatScore(v[c.key])}`).join(" · ")}</div>
@@ -231,6 +234,7 @@ function VoteCard({ vote: v, onEdit }: { vote: Vote; onEdit: () => void }) {
           {v.eindreactie && (<><dt>Eindreactie</dt><dd>{v.eindreactie}</dd></>)}
         </dl>
       )}
+      {mine && (
       <div className="vactions">
         <button type="button" className="small" onClick={onEdit}>Aanpassen</button>
         <button
@@ -249,6 +253,7 @@ function VoteCard({ vote: v, onEdit }: { vote: Vote; onEdit: () => void }) {
         </button>
         {err && <span className="toast err">{err}</span>}
       </div>
+      )}
     </div>
   );
 }
@@ -267,12 +272,12 @@ function SaveButton({ editing }: { editing: boolean }) {
 function VoteForm({
   initial,
   restaurants,
-  members,
+  me,
   onReset,
 }: {
   initial: Draft;
   restaurants: string[];
-  members: string[];
+  me: Me;
   onReset: (keep?: Partial<Draft>) => void;
 }) {
   const [d, setD] = useState<Draft>(initial);
@@ -301,7 +306,8 @@ function VoteForm({
 
   return (
     <section>
-      <h2>{editing ? `Stem aanpassen: ${initial.lid} bij ${initial.restaurant}` : "Stem invoeren"}</h2>
+      <h2>{editing ? `Stem aanpassen: ${initial.restaurant}` : "Stem invoeren"}</h2>
+      <p className="note">Je stemt als <strong>{me.name}</strong>. Stem je opnieuw op hetzelfde restaurant, dan vervangt dat je vorige stem.</p>
       <form action={action} className="card form">
         <input type="hidden" name="id" value={d.id} />
         <div className="row">
@@ -314,14 +320,8 @@ function VoteForm({
             Datum
             <input id="f-date" name="datum" type="date" required value={d.datum} onChange={(e) => setD({ ...d, datum: e.target.value })} />
           </label>
-          <label htmlFor="f-lid">
-            Lid
-            <input id="f-lid" name="lid" list="lidList" required autoComplete="off" placeholder="Je naam"
-              value={d.lid} onChange={(e) => setD({ ...d, lid: e.target.value })} />
-          </label>
         </div>
         <datalist id="restList">{restaurants.map((r) => <option key={r} value={r} />)}</datalist>
-        <datalist id="lidList">{members.map((m) => <option key={m} value={m} />)}</datalist>
 
         <div className="grades">
           {CATEGORIES.map((c) => (
@@ -402,7 +402,8 @@ function Explanation() {
       </div>
       <p className="note">
         De Flipper-score van een restaurant is het gemiddelde van de persoonlijke scores. Ieder lid heeft één stem per
-        restaurant: vul je opnieuw in, dan vervangt dat je vorige stem.
+        restaurant: vul je opnieuw in, dan vervangt dat je vorige stem. Je kunt alleen je eigen stemmen aanpassen of
+        verwijderen; daarvoor log je één keer in met je naam en pincode.
       </p>
     </section>
   );

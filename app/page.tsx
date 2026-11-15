@@ -1,6 +1,8 @@
 import { db, configProblem } from "@/lib/supabase";
 import type { Vote } from "@/lib/score";
 import FlipperApp from "@/components/FlipperApp";
+import IdentifyForm from "@/components/IdentifyForm";
+import { currentMember, type Member } from "@/lib/members";
 
 export const dynamic = "force-dynamic";
 
@@ -10,10 +12,32 @@ export default async function Home() {
 
   let votes: Vote[] = [];
   let loadError: string | null = null;
+  let me: Member | null = null;
   try {
+    // Controle of de leden-uitbreiding (0002_members.sql) al is gedraaid.
+    const { error: membersError } = await db().from("members").select("id").limit(1);
+    if (membersError && /members|does not exist|schema cache/i.test(membersError.message)) {
+      return (
+        <Problem
+          title="Database nog bijwerken"
+          text="De app heeft een nieuwe tabel nodig voor leden met een pincode. Draai supabase/migrations/0002_members.sql in de SQL Editor van Supabase en herlaad deze pagina."
+        />
+      );
+    }
+
+    me = await currentMember();
+    if (!me) {
+      const { data: members } = await db().from("members").select("id, name, pin_hash").order("name");
+      return (
+        <IdentifyForm
+          members={(members ?? []).map((m) => ({ id: m.id, name: m.name, hasPin: Boolean(m.pin_hash) }))}
+        />
+      );
+    }
+
     const { data, error } = await db()
       .from("votes")
-      .select("id, restaurant, datum, lid, eten, service, sfeer, prijs, hygiene, beste_gerecht, wat_kon_beter, eindreactie")
+      .select("id, member_id, restaurant, datum, lid, eten, service, sfeer, prijs, hygiene, beste_gerecht, wat_kon_beter, eindreactie")
       .order("datum", { ascending: false });
     if (error) {
       console.error("Supabase-fout:", error);
@@ -44,7 +68,7 @@ export default async function Home() {
     );
   }
 
-  return <FlipperApp votes={votes} loadError={loadError} />;
+  return <FlipperApp votes={votes} loadError={loadError} me={me} />;
 }
 
 function Problem({ title, text }: { title: string; text: string }) {
