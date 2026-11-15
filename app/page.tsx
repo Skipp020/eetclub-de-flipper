@@ -23,7 +23,7 @@ export default async function Home() {
           : /invalid api key|jwt|unauthorized/i.test(error.message)
             ? "Supabase weigert de key. Controleer SUPABASE_SERVICE_ROLE_KEY in Vercel: gebruik de service_role-key van hetzelfde project als de URL."
             : /fetch failed|ENOTFOUND|network/i.test(error.message)
-              ? "Supabase is niet bereikbaar op de ingestelde URL. Controleer NEXT_PUBLIC_SUPABASE_URL in Vercel en of het Supabase-project actief is (niet gepauzeerd)."
+              ? "Supabase is niet bereikbaar op de ingestelde URL. Controleer SUPABASE_URL in Vercel en of het Supabase-project actief is (niet gepauzeerd)."
               : `De gegevens konden niet geladen worden (${error.message}).`;
     }
     votes = (data ?? []).map((v) => ({
@@ -39,7 +39,7 @@ export default async function Home() {
     return (
       <Problem
         title="Geen verbinding met de database"
-        text="Supabase is niet bereikbaar op de ingestelde URL. Controleer NEXT_PUBLIC_SUPABASE_URL in Vercel en of het Supabase-project actief is (niet gepauzeerd)."
+        text="Supabase is niet bereikbaar op de ingestelde URL. Controleer SUPABASE_URL in Vercel en of het Supabase-project actief is (niet gepauzeerd)."
       />
     );
   }

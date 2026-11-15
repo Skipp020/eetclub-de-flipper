@@ -41,7 +41,7 @@ server bereikbaar (Row Level Security staat aan, zonder publieke policies).
    en de `service_role` key.
 3. **Vercel**: Add New → Project → importeer deze repository. Zet bij
    Environment Variables:
-   - `NEXT_PUBLIC_SUPABASE_URL` = de Project URL
+   - `SUPABASE_URL` = de Project URL
    - `SUPABASE_SERVICE_ROLE_KEY` = de service_role key
    - `CLUB_CODE` = de code die de leden gaan gebruiken
 4. Deploy. Je krijgt een adres als `eetclub-de-flipper.vercel.app`; onder
